@@ -1,0 +1,13 @@
+{
+  "name": "snake3d",
+  "version": "1.0.0",
+  "description": "Modern polished 3D Snake game",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.170.0"
+  }
+}

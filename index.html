@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<title>Snake 3D — Modern Arcade</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.3 9.2a2.8 2.8 0 1 1 3.6 2.6c-.8.3-.9.9-.9 1.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.15" fill="currentColor"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.5 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.3 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.5-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.5-1a7.8 7.8 0 0 0 2.6 1.5l.3 2.6h4l.3-2.6a7.8 7.8 0 0 0 2.6-1.5l2.5 1 2-3.4-2-1.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sound-on" viewBox="0 0 24 24"><path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M17.8 6.2a8 8 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound-off" viewBox="0 0 24 24"><path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="16.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20h-5.5v-5.5h-5V20H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 4.5V9H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 5.5H4v1A4 4 0 0 0 8 10.4M17 5.5h3v1a4 4 0 0 1-4 3.9M12 14v3M8.5 20h7M9.5 17h5l.7 3H8.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2 14.6 8.6l5.9.8-4.3 4.1 1.1 5.9L12 16.6 6.7 19.4l1.1-5.9-4.3-4.1 5.9-.8z" fill="currentColor"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 7c-3.2 0-5 2.6-5 5.6 0 2.6 1.6 4.6 3.6 4.6.9 0 1.4-.6 2.4-.6s1.5.6 2.4.6c2 0 3.6-2 3.6-4.6 0-3-1.8-5.6-5-5.6z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7c0-2 .8-3.4 2.6-3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-snake" viewBox="0 0 24 24"><path d="M19 12.5c0-1.6-1.3-2.5-2.6-2.5-1 0-1.9.5-2.4 1.3-1.4 2.1-3 2.2-4.7 2.2-1.5 0-2.7 1.1-2.7 2.6 0 1.4 1.2 2.5 2.6 2.5 1 0 1.9-.5 2.4-1.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="5.6" cy="19" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-time" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-combo" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 5.5V11c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V5.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z" fill="currentColor"/></symbol>
+    <symbol id="i-magnet" viewBox="0 0 24 24"><path d="M6 4v7a6 6 0 0 0 12 0V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 4h4v6M14 4h4v6" fill="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><path d="M7 4h10l-2 4a5 5 0 0 0-6 0z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6 4h12M9 8h6l3.5 12h-13z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <div id="stage"></div>
+
+  <div id="vignette" aria-hidden="true"></div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <button id="btn-pause" class="icon-btn ghost" aria-label="Pause"><svg class="icon"><use href="#i-pause"/></svg></button>
+      <div class="hud-center">
+        <div id="hud-score" class="hud-score">0</div>
+        <div id="hud-combo" class="hud-combo"></div>
+      </div>
+      <div class="hud-right">
+        <div id="hud-apples" class="pill"><svg class="icon sm"><use href="#i-apple"/></svg><span id="hud-apples-n">0</span></div>
+      </div>
+    </div>
+    <div id="hud-powerups" class="hud-powerups"></div>
+    <div id="hud-level" class="hud-level"></div>
+    <div id="hud-banner" class="hud-banner"></div>
+  </div>
+
+  <!-- ============ D-PAD ============ -->
+  <div id="dpad" class="hidden" aria-label="Directional pad">
+    <button class="dpad-btn" data-dir="up" aria-label="Up"><svg class="icon"><use href="#i-back"/></svg></button>
+    <button class="dpad-btn" data-dir="left" aria-label="Left"><svg class="icon"><use href="#i-back"/></svg></button>
+    <div class="dpad-core"></div>
+    <button class="dpad-btn" data-dir="right" aria-label="Right"><svg class="icon"><use href="#i-back"/></svg></button>
+    <button class="dpad-btn" data-dir="down" aria-label="Down"><svg class="icon"><use href="#i-back"/></svg></button>
+  </div>
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="screen-menu" class="screen">
+    <div class="screen-inner menu-layout">
+      <div class="brand">
+        <div class="logo-mark"><svg class="icon logo-snake"><use href="#i-snake"/></svg></div>
+        <h1 class="logo">SNAKE<span class="accent">3D</span></h1>
+        <p class="tagline">Modern arcade. Five worlds. One hungry snake.</p>
+      </div>
+      <nav class="menu-buttons">
+        <button id="btn-play" class="btn primary big"><svg class="icon"><use href="#i-play"/></svg><span>Play</span></button>
+        <button id="btn-select" class="btn big"><svg class="icon"><use href="#i-map"/></svg><span>Select Map</span></button>
+        <button id="btn-howto" class="btn big"><svg class="icon"><use href="#i-help"/></svg><span>How to Play</span></button>
+        <button id="btn-settings" class="btn big"><svg class="icon"><use href="#i-settings"/></svg><span>Settings</span></button>
+      </nav>
+      <div class="menu-hint">Best played with keyboard · touch D-pad on mobile</div>
+    </div>
+  </div>
+
+  <!-- ============ SELECT MAP ============ -->
+  <div id="screen-select" class="screen hidden">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button id="btn-select-back" class="icon-btn ghost" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+        <h2 class="screen-title">SELECT MAP</h2>
+        <div class="screen-head-spacer"></div>
+      </div>
+      <div id="map-cards" class="map-grid"></div>
+      <div class="select-footer">
+        <span id="select-status" class="select-status">Choose a world to begin</span>
+        <button id="btn-select-play" class="btn primary" disabled><svg class="icon"><use href="#i-play"/></svg><span>Play</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HOW TO PLAY ============ -->
+  <div id="screen-howto" class="screen hidden">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button id="btn-howto-back" class="icon-btn ghost" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+        <h2 class="screen-title">HOW TO PLAY</h2>
+        <div class="screen-head-spacer"></div>
+      </div>
+      <div class="howto-grid">
+        <div class="howto-card"><div class="howto-key">W <span>/</span> ↑</div><p>Move forward / up</p></div>
+        <div class="howto-card"><div class="howto-key">S <span>/</span> ↓</div><p>Move backward / down</p></div>
+        <div class="howto-card"><div class="howto-key">A <span>/</span> ←</div><p>Turn left</p></div>
+        <div class="howto-card"><div class="howto-key">D <span>/</span> →</div><p>Turn right</p></div>
+        <div class="howto-card wide"><div class="howto-key swipe">SWIPE</div><p>Swipe on screen or use the D-pad to steer on touch devices.</p></div>
+        <div class="howto-card wide"><div class="howto-key apple">APPLE</div><p>Eat apples to score, grow, and build your combo. Chain apples for score multipliers.</p></div>
+        <div class="howto-card wide"><div class="howto-key danger">OBSTACLES</div><p>Don't hit walls, obstacles, or your own tail. Grab power-ups to survive longer.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS ============ -->
+  <div id="screen-settings" class="screen hidden">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button id="btn-settings-back" class="icon-btn ghost" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+        <h2 class="screen-title">SETTINGS</h2>
+        <div class="screen-head-spacer"></div>
+      </div>
+      <div class="settings-panel">
+        <button id="btn-mute" class="setting-row">
+          <span class="setting-label"><svg class="icon"><use id="mute-icon" href="#i-sound-on"/></svg><span>Sound</span></span>
+          <span id="mute-state" class="setting-value">On</span>
+        </button>
+        <div class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-music"/></svg><span>Master Volume</span></span>
+          <input id="vol-master" type="range" min="0" max="100" value="80">
+        </div>
+        <div class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-music"/></svg><span>Music Volume</span></span>
+          <input id="vol-music" type="range" min="0" max="100" value="70">
+        </div>
+        <div class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-sound-on"/></svg><span>SFX Volume</span></span>
+          <input id="vol-sfx" type="range" min="0" max="100" value="85">
+        </div>
+        <div class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-trophy"/></svg><span>High Score</span></span>
+          <span id="setting-highscore" class="setting-value">0</span>
+        </div>
+        <button id="btn-stats" class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-star"/></svg><span>Statistics</span></span>
+          <span class="setting-value chev">›</span>
+        </button>
+        <button id="btn-reset" class="btn danger subtle">Reset Progress</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ STATISTICS ============ -->
+  <div id="screen-stats" class="screen hidden">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button id="btn-stats-back" class="icon-btn ghost" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+        <h2 class="screen-title">STATISTICS</h2>
+        <div class="screen-head-spacer"></div>
+      </div>
+      <div id="stats-panel" class="stats-panel"></div>
+    </div>
+  </div>
+
+  <!-- ============ PAUSE ============ -->
+  <div id="screen-pause" class="screen hidden dim">
+    <div class="screen-inner">
+      <h2 class="screen-title">PAUSED</h2>
+      <nav class="menu-buttons">
+        <button id="btn-resume" class="btn primary big"><svg class="icon"><use href="#i-play"/></svg><span>Resume</span></button>
+        <button id="btn-restart" class="btn big"><svg class="icon"><use href="#i-restart"/></svg><span>Restart</span></button>
+        <button id="btn-pause-settings" class="btn big"><svg class="icon"><use href="#i-settings"/></svg><span>Settings</span></button>
+        <button id="btn-quit" class="btn big"><svg class="icon"><use href="#i-home"/></svg><span>Main Menu</span></button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ============ GAME OVER ============ -->
+  <div id="screen-gameover" class="screen hidden dim">
+    <div class="screen-inner">
+      <div id="go-new" class="go-new hidden"><svg class="icon"><use href="#i-trophy"/></svg> NEW HIGH SCORE!</div>
+      <h2 class="screen-title go-title">GAME OVER</h2>
+      <div class="go-score">
+        <span class="go-score-label">Final Score</span>
+        <span id="go-score" class="go-score-value">0</span>
+      </div>
+      <div id="go-stats" class="go-stats"></div>
+      <nav class="menu-buttons go-buttons">
+        <button id="btn-again" class="btn primary big"><svg class="icon"><use href="#i-restart"/></svg><span>Play Again</span></button>
+        <button id="btn-go-menu" class="btn big"><svg class="icon"><use href="#i-home"/></svg><span>Main Menu</span></button>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
