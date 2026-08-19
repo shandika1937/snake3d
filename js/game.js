@@ -35,6 +35,7 @@ export class Game {
     this.deathTimer = 0;
     this._deathShown = false;
     this.fx = { shield: 0, speed: 0, slow: 0, magnet: 0 };
+    this.spawnT = 1; // snake spawn-in animation clock (0..1)
     this._buildShieldBubble();
   }
 
@@ -66,6 +67,9 @@ export class Game {
 
     this.snake.reset(this.mapDef.cols, this.mapDef.rows);
     this.stage.entitiesRoot.add(this.snake.group);
+    // Spawn-in animation: the snake scales up instead of popping in.
+    this.spawnT = 0;
+    this.snake.group.scale.setScalar(0.0001);
 
     this.pickups.setBoard(this.mapDef.cols, this.mapDef.rows, (c) => this._blocked(c));
     this.pickups.spawnApple();
@@ -173,6 +177,13 @@ export class Game {
     }
 
     this.snake.update(dt, time);
+    // Snake spawn-in animation (scale with a soft overshoot).
+    if (this.spawnT < 1) {
+      this.spawnT = Math.min(1, this.spawnT + dt / 0.45);
+      const t = this.spawnT;
+      const e = 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+      this.snake.group.scale.setScalar(Math.max(0.0001, e));
+    }
     this.pickups.update(dt, time, playing && this.fx.magnet > 0 ? this.snake.headSmooth() : null);
     this.effects.update(dt);
     if (this.mapCtx && this.mapCtx.update) this.mapCtx.update(dt, time);

@@ -30,6 +30,7 @@ class App {
     this._isTouch = window.matchMedia("(pointer: coarse)").matches;
     this.thumbs = {};
     this._thumbsDone = false;
+    this._transitioning = false;
 
     this._bindInput();
     this._initAudioUnlock();
@@ -80,19 +81,51 @@ class App {
     audio.startMusic("menu");
   }
 
+  // Guard against double-presses and repeated navigation while a
+  // transition is running (prevents duplicate games / map loads).
+  _guardTransition() {
+    if (this._transitioning) return true;
+    this._transitioning = true;
+    this.ui.setBusy(true);
+    return false;
+  }
+
+  _finishTransition(cb) {
+    this.ui.endTransition(() => {
+      this._transitioning = false;
+      this.ui.setBusy(false);
+      cb?.();
+    });
+  }
+
+  // Shared start-of-game flow: load the map, settle the camera, show the
+  // snake spawn animation, then READY -> GO! before movement starts.
+  _beginPlay(id) {
+    this.game.load(id);
+    this._enterPlayback();
+    this.ui.showBanner("READY", "banner-ready", 700);
+    window.setTimeout(() => {
+      if (this.game.state === "ready") this.game.start();
+    }, 700);
+  }
+
   openSelect() {
-    this.screen = "select";
-    this.game.quit();
-    this.ui.hideHud();
-    this.ui.showDpad(false);
-    if (!this._thumbsDone) {
-      this._generateThumbs();
-      this._thumbsDone = true;
-    }
-    this.ui.showScreen("screen-select");
-    this.ui.setSelectedMap(this.ui.selectedMap);
-    this._previewMap(this.ui.selectedMap);
-    audio.startMusic("menu");
+    if (this._guardTransition()) return;
+    this.ui.startTransition(() => {
+      this.screen = "select";
+      this.game.quit();
+      this.ui.hideHud();
+      this.ui.showDpad(false);
+      if (!this._thumbsDone) {
+        this._generateThumbs();
+        this._thumbsDone = true;
+      }
+      this.ui.showScreen("screen-select");
+      this.ui.setSelectedMap(this.ui.selectedMap);
+      this._previewMap(this.ui.selectedMap);
+      audio.startMusic("menu");
+      this._finishTransition();
+    });
   }
 
   selectMap(id) {
@@ -101,14 +134,24 @@ class App {
   }
 
   playSelectedMap() {
+    if (this._guardTransition()) return;
     const id = this.ui.selectedMap;
-    if (this.game.mapId === id && this.game.state === "ready") {
-      this.game.start();
-    } else {
-      this.game.load(id);
-      this.game.start();
+    if (!getMap(id)) {
+      this.ui.showBanner("MAP NOT FOUND", "banner-error", 1800);
+      this._finishTransition();
+      return;
     }
-    this._enterPlayback();
+    this.ui.startTransition(() => {
+      try {
+        this._beginPlay(id);
+      } catch (err) {
+        console.error("Failed to load map:", err);
+        this.ui.showBanner("LOAD FAILED", "banner-error", 2000);
+        this.screen = "select";
+        this.ui.showScreen("screen-select");
+      }
+      this._finishTransition();
+    });
   }
 
   openHowTo() {
@@ -163,8 +206,18 @@ class App {
   }
 
   restartGame() {
-    this.game.restart();
-    this._enterPlayback();
+    if (this._guardTransition()) return;
+    const id = this.game.mapId || this.ui.selectedMap;
+    this.ui.startTransition(() => {
+      try {
+        this._beginPlay(id);
+      } catch (err) {
+        console.error("Failed to restart:", err);
+        this.ui.showBanner("RESTART FAILED", "banner-error", 2000);
+        this.openMenu();
+      }
+      this._finishTransition();
+    });
   }
 
   quitToMenu() {
