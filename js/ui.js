@@ -46,6 +46,7 @@ export class UI {
       goNew: $("go-new"),
       goScore: $("go-score"),
       goStats: $("go-stats"),
+      overlay: $("transition-overlay"),
     };
   }
 
@@ -65,6 +66,29 @@ export class UI {
   showHud() { this.el.hud.classList.remove("hidden"); }
   hideHud() { this.el.hud.classList.add("hidden"); }
   showDpad(show) { this.el.dpad.classList.toggle("hidden", !show); }
+
+  /* ---------------- Screen transitions ---------------- */
+  // Fade the full-screen overlay in, run the navigation, then fade out.
+  startTransition(onDone) {
+    const o = this.el.overlay;
+    o.classList.remove("hidden");
+    void o.offsetWidth; // force reflow so the opacity transition plays
+    requestAnimationFrame(() => o.classList.add("shown"));
+    window.setTimeout(onDone, 240); // fade-in duration
+  }
+
+  endTransition(onDone) {
+    const o = this.el.overlay;
+    o.classList.remove("shown");
+    window.setTimeout(() => {
+      o.classList.add("hidden");
+      onDone?.();
+    }, 260); // fade-out duration
+  }
+
+  setBusy(busy) {
+    document.body.classList.toggle("is-busy", !!busy);
+  }
 
   /* ---------------- HUD ---------------- */
   setScore(n) {
