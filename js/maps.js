@@ -269,6 +269,75 @@ function makePillar(mat, s = 1) {
   return g;
 }
 
+function makeEmberTree(trunkMat, leafMat, s = 1) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(GEO.cyl, trunkMat);
+  trunk.scale.set(0.14, 0.5, 0.14);
+  trunk.position.y = 0.25;
+  trunk.castShadow = true;
+  g.add(trunk);
+  const leaf = new THREE.Mesh(GEO.sphere, leafMat);
+  leaf.scale.set(0.5, 0.44, 0.5);
+  leaf.position.y = 0.68;
+  leaf.castShadow = true;
+  g.add(leaf);
+  const leaf2 = new THREE.Mesh(GEO.sphere, leafMat);
+  leaf2.scale.set(0.3, 0.28, 0.3);
+  leaf2.position.set(0.12, 0.92, 0.06);
+  leaf2.castShadow = true;
+  g.add(leaf2);
+  g.scale.setScalar(s);
+  return g;
+}
+
+function makeObsidianPillar(mat, glowMat, s = 1) {
+  const g = new THREE.Group();
+  const p = new THREE.Mesh(GEO.cylHi, mat);
+  p.scale.set(0.42, 1.2, 0.42);
+  p.position.y = 0.6;
+  p.castShadow = true;
+  g.add(p);
+  const tip = new THREE.Mesh(GEO.octa, glowMat);
+  tip.scale.setScalar(0.34);
+  tip.position.y = 1.28;
+  g.add(tip);
+  g.scale.setScalar(s);
+  return g;
+}
+
+function makeLavaRock(mat, glowMat, s = 1) {
+  const g = new THREE.Group();
+  const r = new THREE.Mesh(GEO.icosa, mat);
+  r.scale.set(1, 0.55, 0.9);
+  r.castShadow = true;
+  g.add(r);
+  for (let i = 0; i < 3; i++) {
+    const c = new THREE.Mesh(GEO.octa, glowMat);
+    c.scale.setScalar(0.2);
+    c.position.set((i - 1) * 0.28, 0.26, (Math.random() - 0.5) * 0.4);
+    g.add(c);
+  }
+  g.scale.setScalar(s * 0.5);
+  return g;
+}
+
+function makeVolcano(mat, glowTex, s = 1) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(GEO.cone, mat);
+  body.scale.set(3.4, 3.6, 3.4);
+  body.castShadow = true;
+  g.add(body);
+  const crater = new THREE.Mesh(GEO.cyl, new THREE.MeshBasicMaterial({ color: 0xff6a1f, fog: false }));
+  crater.scale.set(1.4, 0.22, 1.4);
+  crater.position.y = 3.7;
+  g.add(crater);
+  const glow = makeGlowSprite(glowTex, 0xff6a2a, 5, 0.85);
+  glow.position.y = 4;
+  g.add(glow);
+  g.scale.setScalar(s);
+  return g;
+}
+
 function makeBarrier(mat, glowTex, s = 1) {
   const g = new THREE.Group();
   const wall = new THREE.Mesh(GEO.box, mat);
@@ -331,6 +400,15 @@ const MAP_DEFS = [
     fog: { color: "#d7e9fb", near: 32, far: 95 },
     light: { color: 0xeef6ff, intensity: 2.0, pos: [10, 26, 10] },
     ambient: { sky: 0xd6ecff, ground: 0x9fc8ec, intensity: 1.1 },
+  },
+  {
+    id: "volcano", name: "Volcanic Inferno", difficulty: "Expert", cls: "expert",
+    cols: 21, rows: 21, speed: 8.2, speedPerLevel: 0.45, seed: 606,
+    flavour: "volcano", accent: "#f97316",
+    sky: { top: "#17040a", horizon: "#4a1210" },
+    fog: { color: "#24100b", near: 30, far: 95 },
+    light: { color: 0xff9a4d, intensity: 1.9, pos: [12, 24, 8] },
+    ambient: { sky: 0x8a3020, ground: 0x1c0e0a, intensity: 1.0 },
   },
 ];
 
@@ -828,12 +906,107 @@ function buildIce(stage, def) {
   return { obstacleCells, update: snow.update, extraFactory: () => makeIceCrystal(iceMat, 1.0) };
 }
 
+function buildVolcano(stage, def, glowTex) {
+  const obstacleCells = new Set();
+  stage.scene.background = new THREE.Color(def.sky.top);
+  stage.scene.fog = new THREE.Fog(def.fog.color, def.fog.near, def.fog.far);
+  stage.mapRoot.add(makeSkyDome(def.sky.top, def.sky.horizon));
+  def.groundColor = 0x2b1712;
+  def.platformMat = std(0x3a2016, { roughness: 1 });
+  addLights(stage, def);
+  addGround(stage, def);
+  addPlatform(stage, def);
+  const g = stage.mapRoot;
+
+  const rockMat = std(0x2b1a16, { roughness: 0.95 });
+  const pillarMat = std(0x1c1416, { roughness: 0.35, metalness: 0.55 });
+  const glowMat = new THREE.MeshStandardMaterial({ color: 0xff8a2a, emissive: 0xff4a10, emissiveIntensity: 2.4, roughness: 0.3 });
+  const trunkMat = std(0x24120c, { roughness: 0.9 });
+  const emberMat = new THREE.MeshStandardMaterial({ color: 0xff6a2a, emissive: 0xff3a10, emissiveIntensity: 1.8, roughness: 0.5 });
+  const halfW = def.cols / 2, halfD = def.rows / 2;
+
+  // Lava pools ringing the arena border.
+  const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff5a1f });
+  for (let x = -halfW; x <= halfW; x += 1) {
+    for (const z of [-halfD - 0.5, halfD + 0.5]) {
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.72, 20), lavaMat);
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x, 0.02, z);
+      g.add(pool);
+      const glow = makeGlowSprite(glowTex, 0xff7a2a, 1.7, 0.85);
+      glow.position.set(x, 0.08, z);
+      g.add(glow);
+    }
+  }
+  for (let z = -halfD; z <= halfD; z += 1) {
+    for (const x of [-halfW - 0.5, halfW + 0.5]) {
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(0.72, 20), lavaMat);
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x, 0.02, z);
+      g.add(pool);
+      const glow = makeGlowSprite(glowTex, 0xff7a2a, 1.7, 0.85);
+      glow.position.set(x, 0.08, z);
+      g.add(glow);
+    }
+  }
+
+  // Corner obsidian pillars.
+  for (const [cx, cz] of [[-halfW - 0.5, -halfD - 0.5], [halfW + 0.5, -halfD - 0.5], [-halfW - 0.5, halfD + 0.5], [halfW + 0.5, halfD + 0.5]]) {
+    const p = makeObsidianPillar(pillarMat, glowMat, 1.1);
+    p.position.set(cx, 0, cz);
+    g.add(p);
+  }
+
+  // Distant erupting volcanoes.
+  const volcMat = std(0x3a2016, { roughness: 1 });
+  const rng = mulberry32(def.seed * 23);
+  for (let i = 0; i < 2; i++) {
+    const v = makeVolcano(volcMat, glowTex, 1 + rng() * 0.6);
+    v.position.set(-halfW - 14 + i * (def.cols + 30), 0, -halfD - 12 - rng() * 4);
+    g.add(v);
+  }
+
+  // Ember trees and lava rocks scattered around the arena.
+  for (let i = 0; i < 16; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = Math.max(halfW, halfD) + 2 + rng() * 7;
+    if (i % 2 === 0) {
+      const t = makeEmberTree(trunkMat, emberMat, 0.9 + rng() * 0.7);
+      t.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+      t.rotation.y = rng() * Math.PI;
+      g.add(t);
+    } else {
+      const rk = makeLavaRock(rockMat, glowMat, 1.2 + rng() * 0.8);
+      rk.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+      g.add(rk);
+    }
+  }
+
+  // Obstacles: lava rocks and obsidian pillars inside the board.
+  const used = new Set();
+  const rockCells = pickCells(def.cols, def.rows, 9, def.seed, used);
+  rockCells.forEach((c) => placeObstacle(stage, c, def.cols, def.rows, makeLavaRock(rockMat, glowMat, 1.2), obstacleCells));
+  const pillarCells = pickCells(def.cols, def.rows, 7, def.seed + 1, used);
+  pillarCells.forEach((c) => placeObstacle(stage, c, def.cols, def.rows, makeObsidianPillar(pillarMat, glowMat, 1.0), obstacleCells));
+
+  // Rising embers and sparks.
+  const embers = makeParticles({ count: 90, color: 0xff7a2a, size: 0.12, region: { x: def.cols + 12, z: def.rows + 12, y: 12 }, baseY: 0.2, mode: "rise", speed: 1.0, opacity: 0.85 });
+  const sparks = makeParticles({ count: 50, color: 0xffd166, size: 0.07, region: { x: def.cols + 12, z: def.rows + 12, y: 12 }, baseY: 0.2, mode: "rise", speed: 1.6, opacity: 0.8 });
+  g.add(embers.points, sparks.points);
+  return {
+    obstacleCells,
+    update(dt, time) { embers.update(dt, time); sparks.update(dt, time); },
+    extraFactory: () => makeLavaRock(rockMat, glowMat, 1.2),
+  };
+}
+
 const BUILDERS = {
   garden: buildGarden,
   desert: buildDesert,
   night: buildNight,
   cyber: buildCyber,
   ice: buildIce,
+  volcano: buildVolcano,
 };
 
 // Build a map into the stage. Returns { obstacleCells, update }.

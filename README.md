@@ -28,7 +28,7 @@ On touch devices: swipe on the arena or use the on-screen D-pad.
 ## Features
 
 - Hand-built cartoon snake: rounded head, eyes, forked tongue, smooth tapered body that follows the head
-- Five distinct worlds: Classic Garden, Desert Canyon, Mystic Night Forest, Neon Cyber City, Frozen Ice Kingdom
+- Six distinct worlds: Classic Garden, Desert Canyon, Mystic Night Forest, Neon Cyber City, Frozen Ice Kingdom, Volcanic Inferno
 - Live 3D map previews with real thumbnails
 - Power-ups: Golden Apple, Shield, Speed Boost, Slow Time, Magnet
 - Combo multipliers, progressive difficulty, theme obstacles

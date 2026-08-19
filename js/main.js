@@ -234,6 +234,14 @@ class App {
 
     this.input.pollGamepad();
     this.game.update(dt, t);
+    if (this.screen === "play" && this.game.mapDef && this.game.snake) {
+      this.stage.setPlayFollow({
+        head: this.game.snake.headSmooth(),
+        dir: this.game.snake.dir,
+        length: this.game.snake.segments.length,
+        state: this.game.state,
+      });
+    }
     this.stage.update(dt, t);
     this.stage.render();
     requestAnimationFrame(this._loop);
