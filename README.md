@@ -35,7 +35,7 @@ On touch devices: swipe on the arena or use the on-screen D-pad.
 - Procedural SFX and generative map-specific music with volume controls
 - Particles, shockwaves, screen shake, floating score text
 - Persistent high scores and lifetime statistics
-- Two POV camera modes (Elevated / Snake Follow) with smooth in-game transitions
+- Three POV camera modes (Follow Snake / Above Snake / Elevated) with smooth in-game transitions
 - Automatic performance detection → quality tiers (High / Medium / Low) and a polished 2D fallback for weak devices
 - Graphics Mode setting (Auto / 3D / 2D), persisted per player
 
