@@ -13,6 +13,7 @@ export const MUSIC_FLAVOURS = {
   night:  { scale: [0, 2, 3, 5, 7, 8, 12], base: 44, tempo: 82, wave: "sine", bright: 0.25 },
   cyber:  { scale: [0, 1, 3, 5, 7, 8, 10, 12], base: 37, tempo: 128, wave: "square", bright: 0.9 },
   ice:    { scale: [0, 2, 4, 7, 9, 11, 12, 16], base: 52, tempo: 100, wave: "sine", bright: 0.6 },
+  volcano: { scale: [0, 1, 3, 5, 7, 8, 10, 12], base: 41, tempo: 124, wave: "sawtooth", bright: 0.6 },
   menu:   { scale: [0, 2, 4, 7, 9, 12, 14, 16], base: 55, tempo: 96, wave: "triangle", bright: 0.5 },
 };
 
