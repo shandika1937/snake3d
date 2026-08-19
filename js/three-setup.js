@@ -3,18 +3,19 @@ import * as THREE from "../vendor/three.module.js";
 export const CELL = 1;
 
 // Camera POV modes. Each mode is a set of parameters the follow camera glides
-// toward. Distances are absolute (cells) so the snake reads large and stays in
-// frame on every board size; `zoomPerSeg`/`maxZoom` grow the view gently with
-// the snake's length, and `minD`/`maxD` enforce a minimum/maximum snake size.
+// toward. Distances are absolute (cells) so the snake reads consistently on
+// every board size; `zoomPerSeg`/`maxZoom` grow the view gently with the
+// snake's length, and `minD`/`maxD` enforce a minimum/maximum snake size.
 const CAMERA_MODES = {
-  // Distances are tight on purpose: the snake head should fill ~20-30% of the
-  // screen, not a dot on a whole-arena wide shot. `elev` is the angle above the
-  // horizon (0 = flat, ~1.57 = top-down); ~0.9-1.2 keeps a clear 3D depth while
-  // staying above-and-behind the head. `lookAhead` is small so the head stays
-  // near screen centre instead of drifting to the bottom edge.
-  follow:   { elev: 0.92, fov: 55, lookAhead: 0.7, deadZone: 0.4, speed: 11, dist: 3.8, zoomPerSeg: 0.010, maxZoom: 1.16, minD: 3.2, maxD: 5.2 },
-  above:    { elev: 1.16, fov: 55, lookAhead: 0.45, deadZone: 0.35, speed: 13, dist: 3.4, zoomPerSeg: 0.008, maxZoom: 1.13, minD: 2.9, maxD: 4.6 },
-  elevated: { elev: 1.00, fov: 56, lookAhead: 0.85, deadZone: 0.5, speed: 10, dist: 4.4, zoomPerSeg: 0.012, maxZoom: 1.22, minD: 3.7, maxD: 6.2 },
+  // Philosophy: the camera sits HIGH ABOVE the snake head (elev ~60-73° from
+  // the horizon) looking down — never beside or behind it — with enough
+  // distance (5-6.6 cells) that the snake is clearly visible (~15-18% of the
+  // screen height) while the surrounding arena stays readable. `elev` is the
+  // angle above the horizon (0 = flat, ~1.57 = top-down). `lookAhead` stays
+  // small so the head stays near screen centre without drifting sideways.
+  follow:   { elev: 1.15, fov: 55, lookAhead: 0.6, deadZone: 0.6, speed: 12, dist: 5.8, zoomPerSeg: 0.010, maxZoom: 1.15, minD: 4.8, maxD: 7.5 },
+  above:    { elev: 1.28, fov: 55, lookAhead: 0.4, deadZone: 0.5, speed: 14, dist: 5.2, zoomPerSeg: 0.008, maxZoom: 1.12, minD: 4.4, maxD: 6.8 },
+  elevated: { elev: 1.05, fov: 56, lookAhead: 0.8, deadZone: 0.7, speed: 10, dist: 6.6, zoomPerSeg: 0.012, maxZoom: 1.20, minD: 5.4, maxD: 8.5 },
 };
 
 export function cellToWorld(gx, gz, cols, rows) {

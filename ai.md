@@ -102,9 +102,16 @@ camera during play** (menu/preview uses `setOrbit`).
 
 | Mode | elev (rad) | dist (cells) | lookAhead | deadZone | speed | Feel |
 | --- | --- | --- | --- | --- | --- | --- |
-| `follow` (default) | 0.92 (~53°) | 3.8 | 0.7 | 0.4 | 11 | above + slightly behind head |
-| `above` | 1.16 (~66°) | 3.4 | 0.45 | 0.35 | 13 | strong overhead, closest |
-| `elevated` | 1.00 (~57°) | 4.4 | 0.85 | 0.5 | 10 | a bit farther, more surroundings |
+| `follow` (default) | 1.15 (~66°) | 5.8 | 0.6 | 0.6 | 12 | overhead above the head, arena readable |
+| `above` | 1.28 (~73°) | 5.2 | 0.4 | 0.5 | 14 | strong top-down, closest overhead |
+| `elevated` | 1.05 (~60°) | 6.6 | 0.8 | 0.7 | 10 | higher/ farther, most surroundings |
+
+**Design rule (user demanded repeatedly): the camera sits HIGH ABOVE the snake head
+(elev ~60-73°) — never beside it and never a close-up.** The horizontal offset is only
+~0.3-0.4× the camera height (overhead ratio), so a left/right-moving snake is seen from
+top, not from the side. Distance 5-6.6 cells makes the head ≈ 13-16% of screen height
+with the arena around it visible. Do not shrink the distance below ~4.5 cells (the user
+rejects close-up cameras) and do not lower elev below ~1.0 rad.
 
 ### Rules that MUST hold (user requirements, repeatedly demanded)
 
@@ -120,7 +127,7 @@ camera during play** (menu/preview uses `setOrbit`).
    jitter, no oscillation. Parameter glides use `km = 1 - exp(-dt * 3.5)`.
 5. **World orientation is fixed** — the camera never yaws with the snake. W is always up
    on screen. This is the single most important non-negotiable.
-6. Dead zone is **small** (0.35–0.5 cells) so the head stays in the middle ~40–60% of the
+6. Dead zone is **small** (0.5–0.7 cells) so the head stays in the middle ~40–60% of the
    screen.
 
 ### Dynamic zoom & game over
@@ -191,8 +198,15 @@ changes:
   with synthetic head positions at every corner/edge, run ~90 frames of
   `stage.update(1/60, t)`, project the head; NDC must stay within ±0.8 (safe zone).
 - **Test C — head size on screen**: project `head` and `head + (0, 0.5, 0)`; the 0.5-cell
-  span should be roughly 13–17% of screen height (≈26–34% for the whole head) at
-  `dist ≈ 3.8`, FOV 55.
+  span should be roughly **6–8% of screen height (≈13–16% for the whole head)** at
+  `dist ≈ 5.8`, FOV 55 — big enough to read, small enough to see the arena.
+- **Test E — camera is above the snake**: read the camera basis from
+  `matrixWorldInverse` (rows, not columns!) and check screen-up ≈ −Z (so W = up) and
+  screen-right = +X; also confirm the horizontal offset / camera-height ratio is
+  ~0.3-0.4 (overhead), not ~1+ (side view).
+- **Test F — camera follows away from spawn**: teleport the head to a far corner, settle
+  ~2.5 s of frames, and check the camera focus is within ~0.5 cells of the head (not at
+  the spawn point).
 - **Test D — smoothness**: after teleporting the head, the camera must settle without
   overshoot/oscillation; mode switches must glide all params (including `dist`).
 - 2D mode: switch `graphicsMode` to `2d`, verify canvas renders, eat-apple logic
@@ -240,10 +254,12 @@ changes:
 - `fb84bc9` (PR #1): Volcanic Inferno world + first camera overhaul (whole-board framing).
 - `3141a27` (PR #2): Play button polish, transition overlay, READY→GO flow, spawn animation.
 - `6af9044`: `vercel.json` static fix (fixed the broken Node-server misdetection deploy).
-- `df13481` (master HEAD, live): **camera POV overhaul** — head-anchored follow, close
-  distances (3.4–4.4), 3 modes (follow/above/elevated), aspect-aware look-ahead clamp,
-  bounded dynamic zoom, smooth mode gliding incl. distance; **performance detection +
-  quality tiers + polished 2D fallback**; snake head/pickup animation polish.
+- `df13481`: **camera POV overhaul** — head-anchored follow, 3 modes
+  (follow/above/elevated), aspect-aware look-ahead clamp, bounded dynamic zoom, smooth
+  mode gliding incl. distance; **performance detection + quality tiers + polished 2D
+  fallback**; snake head/pickup animation polish.
+- (latest, HEAD): camera retuned to **above-the-snake**: elev 60-73°, dist 5.2-6.6 cells
+  (was too close at 3.4-4.4, which read as a side/close-up camera).
 
 ---
 
