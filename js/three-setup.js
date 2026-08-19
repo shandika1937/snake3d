@@ -2,6 +2,21 @@ import * as THREE from "../vendor/three.module.js";
 
 export const CELL = 1;
 
+// Camera POV modes. Each mode is a set of parameters the follow camera glides
+// toward. Distances are absolute (cells) so the snake reads large and stays in
+// frame on every board size; `zoomPerSeg`/`maxZoom` grow the view gently with
+// the snake's length, and `minD`/`maxD` enforce a minimum/maximum snake size.
+const CAMERA_MODES = {
+  // Distances are tight on purpose: the snake head should fill ~20-30% of the
+  // screen, not a dot on a whole-arena wide shot. `elev` is the angle above the
+  // horizon (0 = flat, ~1.57 = top-down); ~0.9-1.2 keeps a clear 3D depth while
+  // staying above-and-behind the head. `lookAhead` is small so the head stays
+  // near screen centre instead of drifting to the bottom edge.
+  follow:   { elev: 0.92, fov: 55, lookAhead: 0.7, deadZone: 0.4, speed: 11, dist: 3.8, zoomPerSeg: 0.010, maxZoom: 1.16, minD: 3.2, maxD: 5.2 },
+  above:    { elev: 1.16, fov: 55, lookAhead: 0.45, deadZone: 0.35, speed: 13, dist: 3.4, zoomPerSeg: 0.008, maxZoom: 1.13, minD: 2.9, maxD: 4.6 },
+  elevated: { elev: 1.00, fov: 56, lookAhead: 0.85, deadZone: 0.5, speed: 10, dist: 4.4, zoomPerSeg: 0.012, maxZoom: 1.22, minD: 3.7, maxD: 6.2 },
+};
+
 export function cellToWorld(gx, gz, cols, rows) {
   return new THREE.Vector3(
     (gx - (cols - 1) / 2) * CELL,
@@ -98,11 +113,12 @@ function disposeObject(root) {
 }
 
 export class Stage {
-  constructor(container) {
+  constructor(container, { quality = "high" } = {}) {
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.shadowMap.enabled = true;
+    this.quality = quality;
+    this.renderer = new THREE.WebGLRenderer({ antialias: quality !== "low", powerPreference: "high-performance" });
+    this.renderer.setPixelRatio(this._pixelRatio());
+    this.renderer.shadowMap.enabled = quality !== "low";
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -120,6 +136,9 @@ export class Stage {
     this.mode = "orbit"; // 'play' | 'orbit'
     this.cameraPos = new THREE.Vector3(0, 6, 8);
     this.cameraLook = new THREE.Vector3(0, 0.3, 0);
+
+    // Dynamic quality fallback (see setQuality).
+    this._qualityLevel = quality;
     this.orbitTarget = new THREE.Vector3();
     this.orbitRadius = 7;
     this.orbitHeight = 3.5;
@@ -129,22 +148,24 @@ export class Stage {
     // Gameplay follow-camera state (see setPlayCamera / _updatePlayCamera).
     // Fixed world orientation: the camera always sits on the +Z side looking
     // toward -Z, so screen-up = -Z, screen-down = +Z, left = -X, right = +X.
+    // The snake HEAD is the camera anchor — never the arena centre — so the
+    // snake can never leave the frame during normal play.
+    const cfg0 = CAMERA_MODES.follow;
     this.follow = {
       active: false,
       target: null, // { head, dir, length, state } fed each frame
-      focus: new THREE.Vector3(),
-      dist: 10, // smoothed camera distance
-      distTarget: 10,
-      elev: 0.98, // ~56° above the horizon, same as frameBoard
-      lookAhead: 1.8, // cells of space shown ahead of the head
-      deadZone: 2.2, // cells the head may roam before the camera chases
-      followSpeed: 8,
+      focus: new THREE.Vector3(), // smoothed camera anchor (tracks the head)
+      cameraMode: "follow",
+      // Live parameters; each frame they glide toward CAMERA_MODES[cameraMode].
+      elev: cfg0.elev,
+      fov: cfg0.fov,
+      lookAhead: cfg0.lookAhead,
+      deadZone: cfg0.deadZone,
+      speed: cfg0.speed,
+      dist: cfg0.dist,
       zoom: 1,
-      zoomPerSeg: 0.014,
-      maxZoom: 1.45,
-      zoomSpeed: 2,
+      overT: 0, // eases toward 1 on game over (gentle pull-out)
       overZoom: 1.12,
-      bounds: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 },
       intro: 1,
       introStart: new THREE.Vector3(),
       introFromLook: new THREE.Vector3(),
@@ -156,15 +177,30 @@ export class Stage {
     this._resize();
   }
 
+  _pixelRatio() {
+    const dpr = window.devicePixelRatio || 1;
+    if (this._qualityLevel === "low") return 1;
+    if (this._qualityLevel === "medium") return Math.min(dpr, 1.5);
+    return Math.min(dpr, 2);
+  }
+
+  // Live quality adjustment for dynamic fallback (antialias can't change
+  // after construction, but resolution + shadows are the big wins anyway).
+  setQuality(quality) {
+    this._qualityLevel = quality;
+    this.renderer.setPixelRatio(this._pixelRatio());
+    this.renderer.shadowMap.enabled = quality !== "low";
+    if (this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
+  }
+
   _resize() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    if (this.mode === "play" && this.follow.active && this._playCols) {
-      this.follow.distTarget = this._frameRadius(this._playCols, this._playRows);
-    }
   }
 
   clearMap() {
@@ -228,28 +264,34 @@ export class Stage {
     f.active = true;
     f.target = null;
     f.focus.set(0, 0, 0);
-    f.dist = this._frameRadius(cols, rows);
-    f.distTarget = f.dist;
+    const cfg = CAMERA_MODES[f.cameraMode] || CAMERA_MODES.follow;
+    f.elev = cfg.elev;
+    f.fov = cfg.fov;
+    f.lookAhead = cfg.lookAhead;
+    f.deadZone = cfg.deadZone;
+    f.speed = cfg.speed;
+    f.dist = cfg.dist;
     f.zoom = 1;
-    // Keep the follow focus inside the arena so a boundary never leaves view.
-    const m = Math.max(2.5, Math.min(cols, rows) * 0.12);
-    f.bounds = {
-      minX: -(cols / 2) + m,
-      maxX: (cols / 2) - m,
-      minZ: -(rows / 2) + m,
-      maxZ: (rows / 2) - m,
-    };
+    f.overT = 0;
+    this.camera.fov = cfg.fov;
+    this.camera.updateProjectionMatrix();
     // Smooth intro from the previous camera (e.g. the orbiting preview).
     f.intro = 0;
     f.introStart.copy(this.cameraPos);
     f.introFromLook.copy(this.cameraLook);
-    this.cameraPos.set(0, f.dist * Math.sin(f.elev), f.dist * Math.cos(f.elev));
+    this.cameraPos.set(0, cfg.dist * Math.sin(cfg.elev), cfg.dist * Math.cos(cfg.elev));
     this.cameraLook.set(0, 0, 0);
   }
 
   // Feed the current snake state so the play camera can track it.
   setPlayFollow(target) {
     this.follow.target = target;
+  }
+
+  // Switch POV. The camera glides between modes (never snaps), and the
+  // world orientation is untouched so WASD mapping stays identical.
+  setCameraMode(mode) {
+    this.follow.cameraMode = CAMERA_MODES[mode] ? mode : "follow";
   }
 
   setOrbit(target, radius, height, speed = 0.22) {
@@ -288,8 +330,11 @@ export class Stage {
     this.camera.lookAt(this.cameraLook);
   }
 
-  // Third-person elevated follow camera for gameplay: fixed world orientation,
-  // smooth follow with a dead zone, slight look-ahead, dynamic zoom.
+  // Gameplay camera. The snake HEAD is the anchor: the camera follows it
+  // every frame with a small dead zone, a bounded dynamic zoom, and an
+  // aspect-aware look-ahead clamp so the head can never leave the safe centre
+  // of the frame. World orientation is fixed (camera on the +Z side), so the
+  // screen mapping (W/↑ = -Z, S/↓ = +Z, A/← = -X, D/→ = +X) never changes.
   _updatePlayCamera(dt) {
     const f = this.follow;
     if (!f.active) return;
@@ -298,45 +343,68 @@ export class Stage {
     // Freeze while paused / between screens (no drifting, no snapping).
     if (t && (t.state === "paused" || t.state === "idle")) return;
 
-    // Where the camera should centre: the head plus a small look-ahead.
-    const lookX = t ? t.head.x + t.dir.x * f.lookAhead : f.focus.x;
-    const lookZ = t ? t.head.z + t.dir.z * f.lookAhead : f.focus.z;
+    // Glide every parameter toward the active mode (smooth mode switching).
+    const cfg = CAMERA_MODES[f.cameraMode] || CAMERA_MODES.follow;
+    const km = 1 - Math.exp(-dt * 3.5);
+    f.elev += (cfg.elev - f.elev) * km;
+    f.fov += (cfg.fov - f.fov) * km;
+    f.lookAhead += (cfg.lookAhead - f.lookAhead) * km;
+    f.deadZone += (cfg.deadZone - f.deadZone) * km;
+    f.speed += (cfg.speed - f.speed) * km;
+    f.dist += (cfg.dist - f.dist) * km;
 
-    // Dead zone: only chase once the head leaves the safe area around the
-    // current focus, so small movements don't drag the camera around.
+    // Dynamic zoom by snake length — smooth, and hard-capped so a long snake
+    // never shrinks to a dot. minD/maxD bound the actual distance.
+    const zoomTarget = Math.min(1 + (t ? (t.length - 5) * cfg.zoomPerSeg : 0), cfg.maxZoom);
+    f.zoom += (zoomTarget - f.zoom) * (1 - Math.exp(-dt * 2));
+    const d = Math.max(cfg.minD, Math.min(cfg.maxD, f.dist * f.zoom));
+
+    // Look-ahead, clamped to the current view so the head stays in frame.
+    // The head sits `la` cells behind the look anchor; capping la to 55% of the
+    // half-height guarantees the head never drops below the lower third.
+    let la = f.lookAhead;
+    if (t) {
+      const tanHalf = Math.tan((f.fov * Math.PI) / 180 / 2);
+      const halfH = d * tanHalf;
+      la = Math.min(la, halfH * 0.55);
+    }
+
+    // Anchor on the head (plus look-ahead), never the arena centre.
+    const lookX = t ? t.head.x + t.dir.x * la : f.focus.x;
+    const lookZ = t ? t.head.z + t.dir.z * la : f.focus.z;
+
+    // Small dead zone: tiny jitters don't shake the view, but the head stays
+    // near centre (never drifts to the edge).
     const dx = lookX - f.focus.x;
-    const dz = lookZ - f.focus.z;
-    const dist = Math.hypot(dx, dz);
+    const dz2 = lookZ - f.focus.z;
+    const dist2 = Math.hypot(dx, dz2);
     let tx = lookX;
     let tz = lookZ;
-    if (dist > f.deadZone) {
-      const over = dist - f.deadZone;
-      tx = f.focus.x + (dx / dist) * over;
-      tz = f.focus.z + (dz / dist) * over;
+    if (dist2 > f.deadZone) {
+      const over = dist2 - f.deadZone;
+      tx = f.focus.x + (dx / dist2) * over;
+      tz = f.focus.z + (dz2 / dist2) * over;
     }
-    // Keep the boundary visible: the focus never leaves the arena.
-    tx = Math.max(f.bounds.minX, Math.min(f.bounds.maxX, tx));
-    tz = Math.max(f.bounds.minZ, Math.min(f.bounds.maxZ, tz));
 
-    // Smooth follow (exponential damping: no snapping, no oscillation).
-    const k = 1 - Math.exp(-dt * f.followSpeed);
+    // Smooth follow (exponential damping: responsive, no snapping/oscillation).
+    const k = 1 - Math.exp(-dt * f.speed);
     f.focus.x += (tx - f.focus.x) * k;
     f.focus.z += (tz - f.focus.z) * k;
 
-    // Smooth distance (recomputed on resize for portrait/landscape).
-    f.dist += (f.distTarget - f.dist) * (1 - Math.exp(-dt * 3));
+    // Gentle pull-out on game over so the crash stays visible.
+    const overT = t && t.state === "over" ? 1 : 0;
+    f.overT += (overT - f.overT) * (1 - Math.exp(-dt * 2));
+    const dd = d * (1 + (f.overZoom - 1) * f.overT);
 
-    // Dynamic zoom: a longer snake needs more of the arena on screen;
-    // game over pulls out gently so the snake stays visible.
-    let zoomT = Math.min(1 + (t ? (t.length - 5) * f.zoomPerSeg : 0), f.maxZoom);
-    if (t && t.state === "over") zoomT *= f.overZoom;
-    f.zoom += (zoomT - f.zoom) * (1 - Math.exp(-dt * f.zoomSpeed));
-
-    const d = f.dist * f.zoom;
-    const h = d * Math.sin(f.elev);
-    const horiz = d * Math.cos(f.elev);
+    const h = dd * Math.sin(f.elev);
+    const horiz = dd * Math.cos(f.elev);
     const pos = new THREE.Vector3(f.focus.x, f.focus.y + h, f.focus.z + horiz);
     const look = new THREE.Vector3(f.focus.x, f.focus.y, f.focus.z);
+
+    if (Math.abs(this.camera.fov - f.fov) > 0.01) {
+      this.camera.fov = f.fov;
+      this.camera.updateProjectionMatrix();
+    }
 
     // Short intro transition from the previous camera position.
     if (f.intro < 1) {

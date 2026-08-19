@@ -235,7 +235,14 @@ export class PickupManager {
     root.add(body, shadow);
     this.stage.entitiesRoot.add(root);
 
-    return { root, body, glow, shadow, type, cell, baseY, phase: Math.random() * Math.PI * 2, spin: 1 };
+    return { root, body, glow, shadow, type, cell, baseY, phase: Math.random() * Math.PI * 2, spin: 1, eating: null };
+  }
+
+  // Start the quick squash-and-pop animation; the pickup is removed from the
+  // scene when it finishes (see update).
+  consume() {
+    if (this.eating) return;
+    this.eating = { t: 0 };
   }
 
   remove(pickup) {
@@ -251,7 +258,19 @@ export class PickupManager {
   }
 
   update(dt, time, attractTo = null) {
+    const dead = [];
     for (const p of this.pickups) {
+      if (p.eating) {
+        // Squash-and-pop: bulge up, spin, then vanish.
+        p.eating.t += dt;
+        const k = Math.min(1, p.eating.t / 0.16);
+        const s = 1 + Math.sin(k * Math.PI) * 0.55;
+        p.body.scale.set(s, s, s);
+        p.body.rotation.y += dt * 10;
+        p.glow.material.opacity = Math.max(0, 0.75 - k);
+        if (k >= 1) dead.push(p);
+        continue;
+      }
       p.body.position.y = p.baseY + Math.sin(time * 2.2 + p.phase) * 0.09;
       p.body.rotation.y += dt * p.spin;
       p.glow.material.opacity = 0.55 + Math.sin(time * 4 + p.phase) * 0.2;
@@ -267,10 +286,12 @@ export class PickupManager {
         }
       }
     }
+    for (const p of dead) this.remove(p);
   }
 
   pickupNear(pos, radius) {
     for (const p of this.pickups) {
+      if (p.eating) continue;
       const dx = p.root.position.x - pos.x;
       const dz = p.root.position.z - pos.z;
       if (dx * dx + dz * dz < radius * radius) return p;

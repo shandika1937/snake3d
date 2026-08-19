@@ -146,6 +146,26 @@
           <span class="setting-label"><svg class="icon"><use href="#i-sound-on"/></svg><span>SFX Volume</span></span>
           <input id="vol-sfx" type="range" min="0" max="100" value="85">
         </div>
+        <div class="setting-row seg-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-settings"/></svg><span>Camera Mode</span></span>
+          <div class="seg" id="seg-camera" data-key="cameraMode" role="radiogroup" aria-label="Camera Mode">
+            <button class="seg-btn" data-val="follow" role="radio">Follow Snake</button>
+            <button class="seg-btn" data-val="above" role="radio">Above Snake</button>
+            <button class="seg-btn" data-val="elevated" role="radio">Elevated</button>
+          </div>
+        </div>
+        <div class="setting-row seg-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-bolt"/></svg><span>Graphics Mode</span></span>
+          <div class="seg" id="seg-graphics" data-key="graphicsMode" role="radiogroup" aria-label="Graphics Mode">
+            <button class="seg-btn" data-val="auto" role="radio">Auto</button>
+            <button class="seg-btn" data-val="3d" role="radio">3D</button>
+            <button class="seg-btn" data-val="2d" role="radio">2D</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label"><svg class="icon"><use href="#i-star"/></svg><span>Performance</span></span>
+          <span id="perf-info" class="setting-value">detecting…</span>
+        </div>
         <div class="setting-row">
           <span class="setting-label"><svg class="icon"><use href="#i-trophy"/></svg><span>High Score</span></span>
           <span id="setting-highscore" class="setting-value">0</span>

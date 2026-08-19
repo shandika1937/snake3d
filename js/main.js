@@ -4,27 +4,33 @@ import { Effects } from "./effects.js";
 import { audio } from "./audio.js";
 import { InputSystem } from "./input.js";
 import { Game } from "./game.js";
+import { Game2D } from "./game2d.js";
 import { UI } from "./ui.js";
 import { store } from "./store.js";
 import { MAPS, getMap, buildMap } from "./maps.js";
+import { detectPerformance, resolveGraphics, FpsMonitor } from "./perf.js";
+
+// Lightweight performance detection runs before the renderer is built, so a
+// weak device is never dragged through a full 3D boot before switching to 2D.
+const perf = detectPerformance();
+const graphics = resolveGraphics(perf, store.settings.graphicsMode);
+window.__perf = {
+  tier: perf.tier,
+  reason: perf.reason,
+  quality: perf.quality,
+  graphics: graphics.mode,
+  info: perf.info,
+};
 
 class App {
-  constructor() {
-    this.stage = new Stage(document.getElementById("stage"));
-    this.glowTex = makeGlowTexture();
-    this.softTex = makeSoftTexture();
-    this.effects = new Effects(this.stage, this.softTex);
+  constructor({ perf, graphics }) {
+    this.perf = perf;
+    this.graphics = graphics.mode; // '3d' | '2d'
+    this.quality = graphics.quality; // 'high' | 'medium' | 'low'
+
     this.ui = new UI(this, audio, store);
+    this._initRenderer();
     this.input = new InputSystem();
-    this.game = new Game({
-      stage: this.stage,
-      effects: this.effects,
-      audio,
-      ui: this.ui,
-      store,
-      glowTex: this.glowTex,
-      softTex: this.softTex,
-    });
 
     this.screen = "menu";
     this._isTouch = window.matchMedia("(pointer: coarse)").matches;
@@ -35,10 +41,47 @@ class App {
     this._bindInput();
     this._initAudioUnlock();
     this._openMenuScene();
+    this.ui.setPerfLabel(this.perfLabel());
 
     this._last = performance.now();
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
+  }
+
+  // Build the renderer for the effective graphics mode. Called at boot and
+  // again when the user changes Graphics Mode from Settings.
+  _initRenderer() {
+    const container = document.getElementById("stage");
+    container.innerHTML = "";
+    if (this.graphics === "2d") {
+      this.stage = null;
+      this.glowTex = null;
+      this.softTex = null;
+      this.canvas2d = document.createElement("canvas");
+      container.appendChild(this.canvas2d);
+      this.game = new Game2D({ canvas: this.canvas2d, ui: this.ui, audio, store });
+    } else {
+      this.stage = new Stage(container, { quality: this.quality });
+      this.glowTex = makeGlowTexture();
+      this.softTex = makeSoftTexture();
+      this.effects = new Effects(this.stage, this.softTex, this.quality);
+      this.game = new Game({
+        stage: this.stage,
+        effects: this.effects,
+        audio,
+        ui: this.ui,
+        store,
+        glowTex: this.glowTex,
+        softTex: this.softTex,
+      });
+      this.stage.setCameraMode(store.settings.cameraMode);
+    }
+    this._thumbsDone = false;
+  }
+
+  perfLabel() {
+    const tier = this.perf.tier;
+    return `${tier} · ${this.graphics === "2d" ? "2D" : "3D " + (this.quality ? "(" + this.quality + ")" : "")}`;
   }
 
   /* ---------- audio ---------- */
@@ -68,6 +111,34 @@ class App {
         else if (this.game.state === "paused") this.resumeGame();
       },
     });
+  }
+
+  /* ---------- settings ---------- */
+  applyCameraMode() {
+    if (this.stage) {
+      this.stage.setCameraMode(store.settings.cameraMode);
+    }
+  }
+
+  // Graphics Mode change: applies immediately from menus; mid-game it lands
+  // on the next round so we never tear the scene out from under a player.
+  applyGraphicsMode() {
+    const want = resolveGraphics(this.perf, store.settings.graphicsMode);
+    if (want.mode === this.graphics) {
+      this.ui.setPerfLabel(this.perfLabel());
+      return;
+    }
+    const playing = this.screen === "play" && (this.game.state === "playing" || this.game.state === "ready");
+    if (playing) {
+      this.ui.showBanner("WILL APPLY NEXT ROUND", "banner-ready", 1600);
+      this.ui.setPerfLabel(this.perfLabel());
+      return;
+    }
+    this.graphics = want.mode;
+    this.quality = want.quality;
+    this._initRenderer();
+    this.ui.setPerfLabel(this.perfLabel());
+    this.openMenu();
   }
 
   /* ---------- navigation ---------- */
@@ -183,8 +254,10 @@ class App {
   /* ---------- gameplay ---------- */
   _enterPlayback() {
     this.screen = "play";
-    const def = getMap(this.game.mapId);
-    this.stage.setPlayCamera(def.cols, def.rows);
+    if (this.stage) {
+      const def = getMap(this.game.mapId);
+      this.stage.setPlayCamera(def.cols, def.rows);
+    }
     this.ui.hideScreens();
     this.ui.showHud();
     this.ui.showDpad(this._isTouch);
@@ -227,11 +300,12 @@ class App {
   /* ---------- scenes ---------- */
   _openMenuScene() {
     this.game.load("garden");
-    this.stage.setOrbit(new THREE.Vector3(0, 0.4, 0), 8.5, 4.4, 0.16);
+    if (this.stage) this.stage.setOrbit(new THREE.Vector3(0, 0.4, 0), 8.5, 4.4, 0.16);
   }
 
   _previewMap(id) {
     this.game.load(id);
+    if (!this.stage) return; // 2D mode: the board itself is the preview
     const def = getMap(id);
     this.stage.setOrbit(
       new THREE.Vector3(0, 0.4, 0),
@@ -242,6 +316,7 @@ class App {
   }
 
   _generateThumbs() {
+    if (this.graphics === "2d" || !this.stage) return; // gradient thumbs in 2D
     const w = 240, h = 300;
     const rt = new THREE.WebGLRenderTarget(w, h);
     this.stage.entitiesRoot.visible = false;
@@ -280,14 +355,55 @@ class App {
     this.ui.setMapThumbs(this.thumbs);
   }
 
+  /* ---------- dynamic quality fallback ---------- */
+  _monitorFps(dt) {
+    if (!this._fps) this._fps = new FpsMonitor();
+    const state = this._fps.sample(dt);
+    if (!state || state.avgMs <= 33) return;
+    this._degradeQuality();
+  }
+
+  _degradeQuality() {
+    const now = performance.now();
+    if (now - (this._lastDegrade || 0) < 8000) return; // cooldown: no thrashing
+    this._lastDegrade = now;
+    if (this.quality === "high") {
+      this.quality = "medium";
+      this._applyQuality();
+      this.ui.showBanner("PERFORMANCE — LOWERING QUALITY", "banner-ready", 1500);
+    } else if (this.quality === "medium") {
+      this.quality = "low";
+      this._applyQuality();
+      this.ui.showBanner("PERFORMANCE — LOW MODE", "banner-ready", 1500);
+    } else if (this.screen !== "play") {
+      // Already at minimum 3D quality: offer the 2D fallback from menus.
+      this.graphics = "2d";
+      this.quality = "low";
+      this._initRenderer();
+      this.ui.setPerfLabel(this.perfLabel());
+      this.openMenu();
+      this.ui.showBanner("SWITCHED TO 2D MODE", "banner-ready", 2000);
+    } else {
+      this.ui.showBanner("TRY 2D MODE IN SETTINGS", "banner-ready", 1800);
+    }
+  }
+
+  _applyQuality() {
+    if (!this.stage) return;
+    this.stage.setQuality(this.quality);
+    this.effects.setQuality(this.quality);
+  }
+
+  /* ---------- main loop ---------- */
   _loop(now) {
-    const dt = Math.min(0.05, (now - this._last) / 1000);
+    // Clamp against negative/zero (clock jumps back) and huge gaps.
+    const dt = Math.max(0, Math.min(0.05, (now - this._last) / 1000));
     this._last = now;
     const t = now / 1000;
 
     this.input.pollGamepad();
     this.game.update(dt, t);
-    if (this.screen === "play" && this.game.mapDef && this.game.snake) {
+    if (this.graphics === "3d" && this.screen === "play" && this.game.mapDef && this.game.snake) {
       this.stage.setPlayFollow({
         head: this.game.snake.headSmooth(),
         dir: this.game.snake.dir,
@@ -295,10 +411,15 @@ class App {
         state: this.game.state,
       });
     }
-    this.stage.update(dt, t);
-    this.stage.render();
+    if (this.stage) {
+      this.stage.update(dt, t);
+      this.stage.render();
+      this._monitorFps(dt);
+    } else {
+      this.game.render(t);
+    }
     requestAnimationFrame(this._loop);
   }
 }
 
-window.__app = new App();
+window.__app = new App({ perf, graphics });

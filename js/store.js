@@ -2,7 +2,7 @@
 const KEY = "snake3d.v1";
 
 const DEFAULTS = {
-  settings: { master: 0.8, music: 0.7, sfx: 0.85, muted: false },
+  settings: { master: 0.8, music: 0.7, sfx: 0.85, muted: false, cameraMode: "follow", graphicsMode: "auto" },
   highScores: {},        // mapId -> best score
   bestCombo: 0,
   stats: {

@@ -2,18 +2,27 @@ import * as THREE from "../vendor/three.module.js";
 
 const MAX_PARTICLES = 140;
 
+// Quality-aware effects: particle counts scale down on weaker devices
+// (see perf.js) so VFX never become the bottleneck.
 export class Effects {
-  constructor(stage, softTex) {
+  constructor(stage, softTex, quality = "high") {
     this.stage = stage;
     this.softTex = softTex;
     this.particles = [];
     this.shockwaves = [];
     this._pool = [];
+    this.setQuality(quality);
+  }
+
+  setQuality(quality) {
+    const scale = quality === "high" ? 1 : quality === "medium" ? 0.72 : 0.5;
+    this._scale = scale;
+    this._max = Math.max(24, Math.floor(MAX_PARTICLES * scale) + 30);
   }
 
   _acquire() {
     for (const p of this.particles) if (!p.active) return p;
-    if (this.particles.length >= MAX_PARTICLES) return null;
+    if (this.particles.length >= this._max) return null;
     const mat = new THREE.SpriteMaterial({
       map: this.softTex, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0xffffff, opacity: 1,
@@ -32,6 +41,7 @@ export class Effects {
   burst(pos, { count = 12, color = 0xffffff, color2 = null, speed = 3.2, spread = 1, gravity = -4, size = 0.24, life = 0.55, up = 1.5 } = {}) {
     const c1 = new THREE.Color(color);
     const c2 = color2 != null ? new THREE.Color(color2) : c1;
+    count = Math.max(1, Math.ceil(count * this._scale));
     for (let i = 0; i < count; i++) {
       const p = this._acquire();
       if (!p) break;

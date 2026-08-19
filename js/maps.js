@@ -1016,3 +1016,25 @@ export function buildMap(mapId, stage, glowTex) {
   const builder = BUILDERS[mapId];
   return builder(stage, def, glowTex);
 }
+
+// Obstacle cell layout for a map, using the exact same seeds/counts as the
+// 3D builders. Lets the 2D fallback mirror the 3D boards without building
+// any geometry.
+export function obstacleLayout(mapId) {
+  const def = getMap(mapId);
+  if (!def) return [];
+  const plans = {
+    garden: [[def.seed, 8], [def.seed + 1, 6]],
+    desert: [[def.seed, 9], [def.seed + 1, 7]],
+    night: [[def.seed, 8], [def.seed + 1, 5], [def.seed + 2, 4]],
+    cyber: [[def.seed, 8], [def.seed + 1, 6]],
+    ice: [[def.seed, 8], [def.seed + 1, 6]],
+    volcano: [[def.seed, 9], [def.seed + 1, 7]],
+  };
+  const used = new Set();
+  const cells = [];
+  for (const [seed, count] of plans[mapId] || []) {
+    for (const c of pickCells(def.cols, def.rows, count, seed, used)) cells.push(c);
+  }
+  return cells;
+}

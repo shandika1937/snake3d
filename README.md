@@ -35,21 +35,26 @@ On touch devices: swipe on the arena or use the on-screen D-pad.
 - Procedural SFX and generative map-specific music with volume controls
 - Particles, shockwaves, screen shake, floating score text
 - Persistent high scores and lifetime statistics
+- Two POV camera modes (Elevated / Snake Follow) with smooth in-game transitions
+- Automatic performance detection → quality tiers (High / Medium / Low) and a polished 2D fallback for weak devices
+- Graphics Mode setting (Auto / 3D / 2D), persisted per player
 
 ## Structure
 
 ```
 index.html        UI shell + vector icons
 css/style.css     modern responsive UI
-js/main.js        app wiring + render loop
+js/main.js        app wiring + render loop (boots 3D or 2D from detection)
 js/game.js        game state, scoring, combo, power-ups, difficulty
+js/game2d.js      2D fallback mode (same rules, Canvas 2D rendering)
 js/snake.js       3D snake character
-js/maps.js        five themed map builders
+js/maps.js        themed map builders + obstacle layout shared with 2D
 js/pickups.js     apple + power-up models
-js/effects.js     particles / shockwaves / floating text
+js/effects.js     particles / shockwaves / floating text (quality-aware)
 js/audio.js       procedural Web Audio SFX + music
 js/input.js       unified input (keyboard/touch/d-pad/gamepad)
-js/three-setup.js renderer, camera, helpers
+js/three-setup.js renderer, camera modes, helpers
+js/perf.js        lightweight performance detection + quality tiers
 js/store.js       localStorage persistence
 vendor/three.module.js
 ```

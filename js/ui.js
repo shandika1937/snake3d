@@ -47,6 +47,7 @@ export class UI {
       goScore: $("go-score"),
       goStats: $("go-stats"),
       overlay: $("transition-overlay"),
+      perfInfo: $("perf-info"),
     };
   }
 
@@ -203,6 +204,25 @@ export class UI {
     this._fillRange(this.el.volSfx);
     this.el.settingHighscore.textContent = fmt(this.store.stats.highScore);
     this._renderMute(s.muted);
+    this._refreshSegs();
+  }
+
+  // Sync the segmented controls (Camera Mode / Graphics Mode) with saved settings.
+  _refreshSegs() {
+    const s = this.store.settings;
+    document.querySelectorAll(".seg").forEach((seg) => {
+      const key = seg.dataset.key;
+      const val = s[key];
+      seg.querySelectorAll(".seg-btn").forEach((btn) => {
+        const on = btn.dataset.val === val;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-checked", String(on));
+      });
+    });
+  }
+
+  setPerfLabel(text) {
+    this.el.perfInfo.textContent = text;
   }
 
   _fillRange(input) {
@@ -289,6 +309,21 @@ export class UI {
         this._loadSettings();
         this.app.applySettings();
       }
+    });
+
+    // Segmented settings (Camera Mode / Graphics Mode).
+    document.querySelectorAll(".seg").forEach((seg) => {
+      seg.addEventListener("click", (e) => {
+        const btn = e.target.closest(".seg-btn");
+        if (!btn) return;
+        const key = seg.dataset.key;
+        const val = btn.dataset.val;
+        this.store.setSettings({ [key]: val });
+        this._refreshSegs();
+        this.audio.click();
+        if (key === "cameraMode") this.app.applyCameraMode();
+        if (key === "graphicsMode") this.app.applyGraphicsMode();
+      });
     });
 
     // Hover SFX on buttons.

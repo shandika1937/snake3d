@@ -34,6 +34,8 @@ export class Snake {
     this.tickDuration = 0.16;
     this._yaw = Math.PI;
     this._tongueTime = 0;
+    this.active = false; // true while playing (drives bob/sway)
+    this._bobT = Math.random() * 6;
 
     this.group = new THREE.Group();
     this._buildTube();
@@ -59,6 +61,7 @@ export class Snake {
     this.moveT = 0;
     this._yaw = Math.atan2(this.dir.x, this.dir.z);
     this.headGroup.rotation.y = this._yaw;
+    this.active = false;
   }
 
   setSpeed(cellsPerSec) {
@@ -330,9 +333,23 @@ export class Snake {
     let dy = targetYaw - this._yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     this._yaw += dy * Math.min(1, dt * 16);
+
+    // Head life: gentle bob while slithering, breathing + subtle sway when idle.
+    this._bobT += dt * (this.active ? 11 : 2.4);
+    const bob = this.active
+      ? Math.sin(this._bobT) * 0.045
+      : Math.sin(this._bobT * 0.5) * 0.014;
     this.headGroup.position.copy(hs);
-    this.headGroup.position.y += HEAD_R * 0.92;
+    this.headGroup.position.y += HEAD_R * 0.92 + bob;
     this.headGroup.rotation.y = this._yaw;
+    if (this.active) {
+      this.headGroup.rotation.z *= Math.max(0, 1 - dt * 6);
+      this.headGroup.scale.set(1, 1, 1);
+    } else {
+      const br = 1 + Math.sin(this._bobT) * 0.016;
+      this.headGroup.scale.set(br, br, br);
+      this.headGroup.rotation.z = Math.sin(this._bobT * 0.7) * 0.03;
+    }
 
     // Tongue flicks.
     this._tongueTime += dt;

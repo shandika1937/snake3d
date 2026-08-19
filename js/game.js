@@ -176,6 +176,7 @@ export class Game {
       this._tick(dt, time);
     }
 
+    this.snake.active = this.state === "playing";
     this.snake.update(dt, time);
     // Snake spawn-in animation (scale with a soft overshoot).
     if (this.spawnT < 1) {
@@ -294,7 +295,8 @@ export class Game {
     } else {
       this._applyPowerUp(pickup.type, pos);
     }
-    this.pickups.remove(pickup);
+    // Squash-and-pop instead of vanishing instantly.
+    pickup.consume();
     if (pickup.type === "apple" || pickup.type === "gold") {
       this.pickups.spawnApple();
     }
